@@ -50,7 +50,7 @@ async function run() {
         const instructorsCollection = client.db("languagevioDB").collection("instructors");
         const studentClassesCollection = client.db("languagevioDB").collection("studentClasses");
 
-        
+
         app.post('/jwt', (req, res) => {
             const user = req.body;
             const token = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, { expiresIn: '5h' });
@@ -67,15 +67,31 @@ async function run() {
 
 
         // instructors
-        app.get('/instructors' , async(req, res) => {
+        app.get('/instructors', async (req, res) => {
             const result = await instructorsCollection.find().toArray();
             res.send(result);
         });
 
-        app.post('/studentClasses', async(req, res) => {
+        // studentClasses
+        app.get('/studentClasses', verifyJWT, async (req, res) => {
+            const email = req.query.email;
+            if (!email) {
+                res.send([]);
+            }
+            const decodedEmail = req.decoded.email;
+            if (decodedEmail !== email) {
+                return res.status(403).send({ error: true, message: 'forbidden access' })
+            }
+
+            const query = { userEmail: email };
+            const result = await studentClassesCollection.find(query).toArray();
+            res.send(result);
+        })
+
+        app.post('/studentClasses', async (req, res) => {
             const selectedClass = req.body;
             const result = await studentClassesCollection.insertOne(selectedClass);
-            res.send(result); 
+            res.send(result);
         })
 
         // Send a ping to confirm a successful connection
