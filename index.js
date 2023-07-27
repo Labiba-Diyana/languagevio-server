@@ -50,6 +50,7 @@ async function run() {
         const classesCollection = client.db("languagevioDB").collection("classes");
         const instructorsCollection = client.db("languagevioDB").collection("instructors");
         const studentClassesCollection = client.db("languagevioDB").collection("studentClasses");
+        const newClassesCollection = client.db("languagevioDB").collection("newClasses");
 
 
         app.post('/jwt', (req, res) => {
@@ -65,6 +66,17 @@ async function run() {
             const query = { email: email };
             const user = await usersCollection.findOne(query);
             if (user?.role !== 'admin') {
+                return res.status(403).send({ error: true, message: 'forbidden access' });
+            }
+            next();
+        }
+
+        // verifyInstructor
+        const verifyInstructor = async (req, res, next) => {
+            const email = req.decoded.email;
+            const query = { email: email };
+            const user = await usersCollection.findOne(query);
+            if (user?.role !== 'instructor') {
                 return res.status(403).send({ error: true, message: 'forbidden access' });
             }
             next();
@@ -193,7 +205,16 @@ async function run() {
             const result = await studentClassesCollection.deleteOne(query);
             res.send(result);
 
+        });
+
+        // new classes
+        app.post('/newClasses', verifyJWT, verifyInstructor, async(req, res) => {
+               const newClass = req.body;
+               const result = await newClassesCollection.insertOne(newClass);
+               res.send(result);
         })
+      
+
 
         // Send a ping to confirm a successful connection
         await client.db("admin").command({ ping: 1 });
