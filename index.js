@@ -208,12 +208,27 @@ async function run() {
         });
 
         // new classes
-        app.post('/newClasses', verifyJWT, verifyInstructor, async(req, res) => {
-               const newClass = req.body;
-               const result = await newClassesCollection.insertOne(newClass);
-               res.send(result);
+        app.post('/newClasses', verifyJWT, verifyInstructor, async (req, res) => {
+            const newClass = req.body;
+            const result = await newClassesCollection.insertOne(newClass);
+            res.send(result);
+        });
+
+        app.get('/newClasses', verifyJWT, verifyInstructor, async (req, res) => {
+            const email = req.query.email;
+            if (!email) {
+                res.send([]);
+            }
+            const decodedEmail = req.decoded.email;
+            if (decodedEmail !== email) {
+                return res.status(403).send({ error: true, message: 'forbidden access' });
+            }
+
+            const query = {userEmail: email};
+            const result = await newClassesCollection.find(query).toArray();
+            res.send(result);
         })
-      
+
 
 
         // Send a ping to confirm a successful connection
