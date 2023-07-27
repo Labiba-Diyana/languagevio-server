@@ -91,6 +91,7 @@ async function run() {
 
         // instructor users
         app.patch('/users/instructor/:id', async (req, res) => {
+            const instructor = req.body;
             const id = req.params.id;
             const filter = { _id: new ObjectId(id) };
             const updateDoc = {
@@ -99,10 +100,10 @@ async function run() {
                 },
             };
 
-            const newInstructor = await instructorsCollection
+            const newInstructor = await instructorsCollection.insertOne(instructor);
 
             const result = await usersCollection.updateOne(filter, updateDoc);
-            res.send(result);
+            res.send({result, newInstructor});
         });
 
 
