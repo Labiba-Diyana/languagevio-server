@@ -59,8 +59,19 @@ async function run() {
             res.send({ token });
         })
 
+        // verifyAdmin
+        const verifyAdmin = async (req, res, next) => {
+            const email = req.decoded.email;
+            const query = { email: email };
+            const user = await usersCollection.findOne(query);
+            if (user?.role !== 'admin') {
+                return res.status(403).send({ error: true, message: 'forbidden access' });
+            }
+            next();
+        }
+        
         // all users
-        app.get('/users', verifyJWT, async (req, res) => {
+        app.get('/users', verifyJWT, verifyAdmin, async (req, res) => {
             const result = await usersCollection.find().toArray();
             res.send(result);
         });
@@ -89,6 +100,7 @@ async function run() {
         })
 
         app.patch('/users/admin/:id', async (req, res) => {
+            const instructor = req.body;
             const id = req.params.id;
             const filter = { _id: new ObjectId(id) };
             const updateDoc = {
@@ -96,8 +108,18 @@ async function run() {
                     role: 'admin'
                 },
             };
-            const result = await usersCollection.updateOne(filter, updateDoc);
-            res.send(result);
+
+            const query = { email: instructor.email }
+            const existingInstructor = await instructorsCollection.findOne(query);
+            if (existingInstructor) {
+                const oldInstructor = await instructorsCollection.deleteOne(instructor);
+                const result = await usersCollection.updateOne(filter, updateDoc);
+                return res.send({ oldInstructor, result });
+            }
+            else {
+                const result = await usersCollection.updateOne(filter, updateDoc);
+                return res.send(result);
+            }
         });
 
         // instructor users
@@ -111,9 +133,10 @@ async function run() {
                 },
             };
 
+            const result = await usersCollection.updateOne(filter, updateDoc);
+
             const newInstructor = await instructorsCollection.insertOne(instructor);
 
-            const result = await usersCollection.updateOne(filter, updateDoc);
             res.send({ result, newInstructor });
         });
 
