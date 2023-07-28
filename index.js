@@ -207,14 +207,44 @@ async function run() {
 
         });
 
-        // new classes
-        app.post('/newClasses', verifyJWT, verifyInstructor, async (req, res) => {
-            const newClass = req.body;
-            const result = await newClassesCollection.insertOne(newClass);
+        // new classes   
+        // for admin
+        app.get('/newClasses', verifyJWT, verifyAdmin, async(req, res) => {
+            const result = await newClassesCollection.find().toArray();
             res.send(result);
         });
 
-        app.get('/newClasses', verifyJWT, verifyInstructor, async (req, res) => {
+        app.patch('/newClasses/approved/:id', async(req, res) => {
+            const approvedClass = req.body;
+            const id = req.params.id;
+            const filter = { _id: new ObjectId(id) };
+            const updateDoc = {
+                $set: {
+                    status: 'approved'
+                },
+            };
+
+            const result = await newClassesCollection.updateOne(filter, updateDoc);
+
+            const newClass = await classesCollection.insertOne(approvedClass);
+            res.send({result, newClass});
+        });
+
+        app.patch('/newClasses/denied/:id', async(req, res) => {
+            const id = req.params.id;
+            const filter = { _id: new ObjectId(id) };
+            const updateDoc = {
+                $set: {
+                    status: 'denied'
+                },
+            };
+
+            const result = await newClassesCollection.updateOne(filter, updateDoc);
+            res.send(result);
+        });
+
+        // for instructor
+        app.get('/newClasses/instructor', verifyJWT, verifyInstructor, async (req, res) => {
             const email = req.query.email;
             if (!email) {
                 res.send([]);
@@ -227,7 +257,13 @@ async function run() {
             const query = {userEmail: email};
             const result = await newClassesCollection.find(query).toArray();
             res.send(result);
-        })
+        });
+
+        app.post('/newClasses/instructor', verifyJWT, verifyInstructor, async (req, res) => {
+            const newClass = req.body;
+            const result = await newClassesCollection.insertOne(newClass);
+            res.send(result);
+        });
 
 
 
