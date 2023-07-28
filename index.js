@@ -209,12 +209,19 @@ async function run() {
 
         // new classes   
         // for admin
-        app.get('/newClasses', verifyJWT, verifyAdmin, async(req, res) => {
+        app.get('/newClasses', verifyJWT, verifyAdmin, async (req, res) => {
             const result = await newClassesCollection.find().toArray();
             res.send(result);
         });
 
-        app.patch('/newClasses/approved/:id', async(req, res) => {
+        // app.get('/newClasses/:id', verifyJWT, verifyAdmin, async (req, res) => {
+        //     const id = req.params.id;
+        //     const query = { _id: new ObjectId(id) };
+        //     const result = await newClassesCollection.findOne(query);
+        //     res.send(result);
+        // })
+
+        app.patch('/newClasses/approved/:id', async (req, res) => {
             const approvedClass = req.body;
             const id = req.params.id;
             const filter = { _id: new ObjectId(id) };
@@ -227,10 +234,10 @@ async function run() {
             const result = await newClassesCollection.updateOne(filter, updateDoc);
 
             const newClass = await classesCollection.insertOne(approvedClass);
-            res.send({result, newClass});
+            res.send({ result, newClass });
         });
 
-        app.patch('/newClasses/denied/:id', async(req, res) => {
+        app.patch('/newClasses/denied/:id', async (req, res) => {
             const id = req.params.id;
             const filter = { _id: new ObjectId(id) };
             const updateDoc = {
@@ -243,6 +250,20 @@ async function run() {
             res.send(result);
         });
 
+        app.patch('/newClasses/feedback/:id', async(req, res) => {
+            const getFeedback = req.body;
+            const id = req.params.id;
+            const filter = { _id: new ObjectId(id) };
+            const updateDoc = {
+                $set: {
+                    feedback: getFeedback.feedback
+                },
+            };
+
+            const result = await newClassesCollection.updateOne(filter, updateDoc);
+            res.send(result);
+        })
+
         // for instructor
         app.get('/newClasses/instructor', verifyJWT, verifyInstructor, async (req, res) => {
             const email = req.query.email;
@@ -254,7 +275,7 @@ async function run() {
                 return res.status(403).send({ error: true, message: 'forbidden access' });
             }
 
-            const query = {userEmail: email};
+            const query = { userEmail: email };
             const result = await newClassesCollection.find(query).toArray();
             res.send(result);
         });
