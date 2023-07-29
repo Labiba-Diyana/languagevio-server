@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 require('dotenv').config();
 const jwt = require('jsonwebtoken');
+const stripe = require("stripe")(process.env.PAYMENT_SECRET_KEY)
 const app = express();
 const port = process.env.PORT || 5000;
 
@@ -193,6 +194,13 @@ async function run() {
             res.send(result);
         });
 
+        app.get('/studentClasses/:id', verifyJWT, async(req, res) => {
+            const id = req.params.id;
+            const query = { _id: new ObjectId(id) };
+            const result = await studentClassesCollection.find(query).toArray();
+            res.send(result);
+        })
+
         app.post('/studentClasses', async (req, res) => {
             const selectedClass = req.body;
             const result = await studentClassesCollection.insertOne(selectedClass);
@@ -213,13 +221,6 @@ async function run() {
             const result = await newClassesCollection.find().toArray();
             res.send(result);
         });
-
-        // app.get('/newClasses/:id', verifyJWT, verifyAdmin, async (req, res) => {
-        //     const id = req.params.id;
-        //     const query = { _id: new ObjectId(id) };
-        //     const result = await newClassesCollection.findOne(query);
-        //     res.send(result);
-        // })
 
         app.patch('/newClasses/approved/:id', async (req, res) => {
             const approvedClass = req.body;
@@ -250,7 +251,7 @@ async function run() {
             res.send(result);
         });
 
-        app.patch('/newClasses/feedback/:id', async(req, res) => {
+        app.patch('/newClasses/feedback/:id', verifyJWT, verifyAdmin, async (req, res) => {
             const getFeedback = req.body;
             const id = req.params.id;
             const filter = { _id: new ObjectId(id) };
@@ -285,6 +286,21 @@ async function run() {
             const result = await newClassesCollection.insertOne(newClass);
             res.send(result);
         });
+
+        // create payment intent
+        app.post('/create-payment-intent', verifyJWT, async (req, res) => {
+            const {price} = req.body;
+            const amount = price * 100;
+            console.log(price, amount)
+            const paymentIntent = await stripe.paymentIntents.create({
+                amount: amount,
+                currency: 'usd',
+                payment_method_types: ['card']
+            });
+            res.send({
+                clientSecret: paymentIntent.client_secret,
+            });
+        })
 
 
 
