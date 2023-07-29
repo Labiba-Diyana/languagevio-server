@@ -53,6 +53,7 @@ async function run() {
         const studentClassesCollection = client.db("languagevioDB").collection("studentClasses");
         const newClassesCollection = client.db("languagevioDB").collection("newClasses");
         const paymentsCollection = client.db("languagevioDB").collection("payments");
+        const enrolledClassCollection = client.db("languagevioDB").collection("enrolledClasses");
 
 
         app.post('/jwt', (req, res) => {
@@ -307,6 +308,10 @@ async function run() {
             const payment = req.body;
             const result = await paymentsCollection.insertOne(payment);
 
+            const { name, image, instructorName, email, userEmail } = payment;
+            const allEnrolled = { name, image, instructorName, email, userEmail };
+            const saveEnrolledClass = await enrolledClassCollection.insertOne(allEnrolled);
+
             const query = { _id: new ObjectId(payment.selectedId) };
             const deleteClass = await studentClassesCollection.deleteOne(query);
 
@@ -322,8 +327,45 @@ async function run() {
             const updatedClass = await classesCollection.updateOne(filterClass, updateDoc);
             const updatedNewClass = await newClassesCollection.updateOne(filterNewClass, updateDoc);
 
-            res.send({result, deleteClass, updatedClass, updatedNewClass});
+            res.send({ result, deleteClass, updatedClass, updatedNewClass, saveEnrolledClass });
+        });
+
+        app.get('/payment', verifyJWT, async (req, res) => {
+            const email = req.query.email;
+            if (!email) {
+                res.send([]);
+            }
+            const decodedEmail = req.decoded.email;
+            if (decodedEmail !== email) {
+                return res.status(403).send({ error: true, message: 'forbidden access' });
+            }
+
+            const query = { userEmail: email };
+            
+            const options = {
+                sort: { date: -1 },
+            }
+
+            const result = await paymentsCollection.find(query, options).toArray();
+            res.send(result);
         })
+
+        // enrolled classes
+        app.get('/enrolledClasses', verifyJWT, async (req, res) => {
+            const email = req.query.email;
+            if (!email) {
+                res.send([]);
+            }
+            const decodedEmail = req.decoded.email;
+            if (decodedEmail !== email) {
+                return res.status(403).send({ error: true, message: 'forbidden access' });
+            }
+
+            const query = { userEmail: email };
+            const result = await enrolledClassCollection.find(query).toArray();
+            res.send(result);
+        });
+
 
 
 
