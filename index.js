@@ -52,6 +52,7 @@ async function run() {
         const instructorsCollection = client.db("languagevioDB").collection("instructors");
         const studentClassesCollection = client.db("languagevioDB").collection("studentClasses");
         const newClassesCollection = client.db("languagevioDB").collection("newClasses");
+        const paymentsCollection = client.db("languagevioDB").collection("payments");
 
 
         app.post('/jwt', (req, res) => {
@@ -194,7 +195,7 @@ async function run() {
             res.send(result);
         });
 
-        app.get('/studentClasses/:id', verifyJWT, async(req, res) => {
+        app.get('/studentClasses/:id', verifyJWT, async (req, res) => {
             const id = req.params.id;
             const query = { _id: new ObjectId(id) };
             const result = await studentClassesCollection.find(query).toArray();
@@ -289,9 +290,8 @@ async function run() {
 
         // create payment intent
         app.post('/create-payment-intent', verifyJWT, async (req, res) => {
-            const {price} = req.body;
+            const { price } = req.body;
             const amount = price * 100;
-            console.log(price, amount)
             const paymentIntent = await stripe.paymentIntents.create({
                 amount: amount,
                 currency: 'usd',
@@ -300,6 +300,29 @@ async function run() {
             res.send({
                 clientSecret: paymentIntent.client_secret,
             });
+        });
+
+        // payments
+        app.post('/payments', verifyJWT, async (req, res) => {
+            const payment = req.body;
+            const result = await paymentsCollection.insertOne(payment);
+
+            const query = { _id: new ObjectId(payment.selectedId) };
+            const deleteClass = await studentClassesCollection.deleteOne(query);
+
+            const filterClass = { _id: new ObjectId(payment.classId) };
+            const filterNewClass = { _id: new ObjectId(payment.approvedId) };
+            const updateDoc = {
+                $set: {
+                    seats: payment.seats,
+                    students: payment.students
+                },
+            };
+
+            const updatedClass = await classesCollection.updateOne(filterClass, updateDoc);
+            const updatedNewClass = await newClassesCollection.updateOne(filterNewClass, updateDoc);
+
+            res.send({result, deleteClass, updatedClass, updatedNewClass});
         })
 
 
